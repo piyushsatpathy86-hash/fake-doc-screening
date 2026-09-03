@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Verification Report</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="report-box">
+    <h1>Document Verification Report</h1>
+    <p id="name">Name: -</p>
+    <p id="passport">Passport Number: -</p>
+    <p id="match">Face Match: -</p>
+    <p id="liveness">Liveness: -</p>
+    <p id="risk">Risk Score: -</p>
+    <p id="status">Status: -</p>
+    <a id="downloadBtn" href="#" download>Download PDF Report</a>
+  </div>
+
+  <script>
+    function showReport(data) {
+      document.getElementById("name").innerText = "Name: " + data.name;
+      document.getElementById("passport").innerText = "Passport Number: " + data.passport_number;
+      document.getElementById("match").innerText = "Face Match: " + (data.is_match ? "YES" : "NO");
+      document.getElementById("liveness").innerText = "Liveness: " + (data.is_live ? "PASSED" : "FAILED");
+      document.getElementById("risk").innerText = "Risk Score: " + data.risk_score + "/100";
+      document.getElementById("status").innerText = "Status: " + data.status;
+      document.getElementById("downloadBtn").href = data.pdf_url;
+    }
+  </script>
+</body>
+</html>
