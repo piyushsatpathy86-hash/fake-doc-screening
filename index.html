@@ -1,0 +1,26 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passport Screening</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="upload-box">
+    <h2>Upload Documents for Verification</h2>
+
+    <label>Passport / Document Photo</label>
+    <input type="file" id="documentPhoto" accept="image/*">
+
+    <label>Live Photo (Selfie)</label>
+    <input type="file" id="livePhoto" accept="image/*">
+
+    <button id="uploadBtn" type="button">Submit for Verification</button>
+
+    <p id="uploadStatus"></p>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!-- qr.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QR Verification</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>📱 Verify with QR Code</h1>
+  <div class="container">
+    <input type="text" id="qrInput" placeholder="Enter QR code data or scan">
+    <button onclick="verifyQR()">Verify</button>
+    <div id="qrResult"></div>
+  </div>
+  <script>
+    async function verifyQR() {
+      const code = document.getElementById('qrInput').value.trim();
+      if (!code) return alert('Please enter QR data.');
+      const res = await fetch('/api/verify-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qr_data: code })
+      });
+      const data = await res.json();
+      document.getElementById('qrResult').innerHTML = `
+        <p>✅ Valid: ${data.valid ? 'Yes' : 'No'}</p>
+        <p>Record ID: ${data.record_id || 'N/A'}</p>
+      `;
+    }
+  </script>
+</body>
+</html>
