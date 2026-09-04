@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="orbit-bg">
+    <div class="orbit-ring ring1"></div>
+    <div class="orbit-ring ring2"></div>
+    <div class="orbit-ring ring3"></div>
+    <div class="orbit-dot dot1"></div>
+    <div class="orbit-dot dot2"></div>
+    <div class="orbit-dot dot3"></div>
+    <div class="orbit-core"></div>
+  </div>
+
+  <h1 style="text-align:center;">Verification Dashboard</h1>
+  <p style="text-align:center; margin-bottom: 20px; position:relative; z-index:1;">Overview of document checks</p>
+
+  <div class="dashboard-grid">
+    <div class="dashboard-card">
+      <h3>Total Checks</h3>
+      <div class="stat" id="totalChecks">0</div>
+    </div>
+    <div class="dashboard-card">
+      <h3>High Risk Flagged</h3>
+      <div class="stat" id="highRisk">0</div>
+    </div>
+    <div class="dashboard-card">
+      <h3>Average Risk Score</h3>
+      <div class="stat" id="avgRisk">0</div>
+    </div>
+  </div>
+
+  <div class="dashboard-card" style="max-width: 700px;">
+    <h3>Risk Score Distribution</h3>
+    <canvas id="riskChart" height="200"></canvas>
+  </div>
+
+  <script>
+    const sampleData = {
+      totalChecks: 12,
+      highRisk: 3,
+      avgRisk: 42,
+      labels: ["Check 1", "Check 2", "Check 3", "Check 4", "Check 5"],
+      scores: [20, 65, 85, 30, 55]
+    };
+
+    document.getElementById("totalChecks").innerText = sampleData.totalChecks;
+    document.getElementById("highRisk").innerText = sampleData.highRisk;
+    document.getElementById("avgRisk").innerText = sampleData.avgRisk;
+
+    const ctx = document.getElementById("riskChart").getContext("2d");
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: sampleData.labels,
+        datasets: [{
+          label: "Risk Score",
+          data: sampleData.scores,
+          backgroundColor: "#34c789",
+          borderRadius: 6
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, max: 100, ticks: { color: "#93a099" }, grid: { color: "#232b27" } },
+          x: { ticks: { color: "#93a099" }, grid: { display: false } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  </script>
+</body>
+</html>

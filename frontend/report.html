@@ -6,25 +6,55 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="orbit-bg">
+    <div class="orbit-ring ring1"></div>
+    <div class="orbit-ring ring2"></div>
+    <div class="orbit-ring ring3"></div>
+    <div class="orbit-dot dot1"></div>
+    <div class="orbit-dot dot2"></div>
+    <div class="orbit-dot dot3"></div>
+    <div class="orbit-core"></div>
+  </div>
+
   <div class="report-box">
     <h1>Document Verification Report</h1>
-    <p id="name">Name: -</p>
-    <p id="passport">Passport Number: -</p>
-    <p id="match">Face Match: -</p>
-    <p id="liveness">Liveness: -</p>
-    <p id="risk">Risk Score: -</p>
-    <p id="status">Status: -</p>
+
+    <div class="field-box">
+      <span class="field-label">Name</span>
+      <span class="field-value" id="name">-</span>
+    </div>
+    <div class="field-box">
+      <span class="field-label">Passport Number</span>
+      <span class="field-value" id="passport">-</span>
+    </div>
+    <div class="field-box">
+      <span class="field-label">Face Match</span>
+      <span class="field-value" id="match">-</span>
+    </div>
+    <div class="field-box">
+      <span class="field-label">Liveness</span>
+      <span class="field-value" id="liveness">-</span>
+    </div>
+    <div class="field-box">
+      <span class="field-label">Risk Score</span>
+      <span class="field-value" id="risk">-</span>
+    </div>
+    <div class="field-box">
+      <span class="field-label">Status</span>
+      <span class="field-value" id="status">-</span>
+    </div>
+
     <a id="downloadBtn" href="#" download>Download PDF Report</a>
   </div>
 
   <script>
     function showReport(data) {
-      document.getElementById("name").innerText = "Name: " + data.name;
-      document.getElementById("passport").innerText = "Passport Number: " + data.passport_number;
-      document.getElementById("match").innerText = "Face Match: " + (data.is_match ? "YES" : "NO");
-      document.getElementById("liveness").innerText = "Liveness: " + (data.is_live ? "PASSED" : "FAILED");
-      document.getElementById("risk").innerText = "Risk Score: " + data.risk_score + "/100";
-      document.getElementById("status").innerText = "Status: " + data.status;
+      document.getElementById("name").innerText = data.name;
+      document.getElementById("passport").innerText = data.passport_number;
+      document.getElementById("match").innerText = data.is_match ? "YES" : "NO";
+      document.getElementById("liveness").innerText = data.is_live ? "PASSED" : "FAILED";
+      document.getElementById("risk").innerText = data.risk_score + "/100";
+      document.getElementById("status").innerText = data.status;
       document.getElementById("downloadBtn").href = data.pdf_url;
     }
   </script>
