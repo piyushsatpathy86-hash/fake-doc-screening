@@ -23,6 +23,92 @@ let docFile = null;
 let liveFile = null;
 let cameraStream = null;
 
+// ---- THEME TOGGLE ----
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn = document.getElementById("themeToggle");
+
+  if (html.getAttribute("data-theme") === "dark") {
+    html.removeAttribute("data-theme");
+    if (btn) btn.textContent = "🌙 Dark";
+    localStorage.setItem("theme", "light");
+  } else {
+    html.setAttribute("data-theme", "dark");
+    if (btn) btn.textContent = "☀️ Light";
+    localStorage.setItem("theme", "dark");
+  }
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("theme");
+  const btn = document.getElementById("themeToggle");
+  if (saved === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    if (btn) btn.textContent = "☀️ Light";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initTheme);
+
+// ---- VOICE ALERT ----
+function voiceAlert(level) {
+  if (level === "HIGH") {
+    try {
+      const msg = new SpeechSynthesisUtterance(
+        "High Risk Detected. Manual verification required."
+      );
+      msg.lang = "en-IN";
+      msg.rate = 1;
+      speechSynthesis.speak(msg);
+    } catch (err) {
+      console.log("Voice alert not supported");
+    }
+  }
+}
+
+// ---- SOUND EFFECT ----
+function playAlertSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880; // Hz
+    gainNode.gain.value = 0.3;
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.3);
+  } catch (err) {
+    console.log("Sound effect not supported");
+  }
+}
+
+// ---- ANIMATED RISK GAUGE ----
+function animateRiskGauge(score) {
+  const circle = document.getElementById("riskGaugeCircle");
+  const text = document.getElementById("riskGaugeText");
+  if (!circle || !text) return;
+
+  const maxOffset = 314; // circumference 2*pi*50 ≈ 314
+  const targetOffset = maxOffset - (Math.min(score, 100) / 100) * maxOffset;
+
+  circle.style.transition = "stroke-dashoffset 1.2s ease";
+  circle.style.strokeDashoffset = targetOffset;
+  text.textContent = Math.round(score);
+
+  if (score < 30) {
+    circle.style.stroke = "#2e7d32";
+  } else if (score < 60) {
+    circle.style.stroke = "#f9a825";
+  } else {
+    circle.style.stroke = "#c0392b";
+  }
+}
+
 // ---- Document upload preview ----
 docInput.addEventListener("change", (e) => {
   docFile = e.target.files[0];
@@ -116,7 +202,16 @@ function renderResults(result) {
   riskLevelEl.textContent = result.risk_level || "--";
   riskLevelEl.className = "risk-badge " + (result.risk_level || "");
 
-  document.getElementById("riskScore").textContent = result.risk_score ?? "--";
+  // 🔥 VOICE ALERT + SOUND EFFECT
+  voiceAlert(result.risk_level);
+  if (result.risk_level === "HIGH") {
+    playAlertSound();
+  }
+
+  const riskScore = result.risk_score ?? 0;
+  document.getElementById("riskScore").textContent = riskScore;
+  animateRiskGauge(riskScore);
+
   document.getElementById("documentType").textContent = result.document_type || "--";
   document.getElementById("faceMatch").textContent = result.face_match ? "Match" : "No Match";
   document.getElementById("similarity").textContent = result.similarity ?? "--";

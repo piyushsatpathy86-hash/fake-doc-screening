@@ -3,83 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reports - AI Document Screening System</title>
+<title>Reports - KAVACHAI</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <header class="topbar">
-    <div class="logo-title">
-      <span class="badge">SSB</span>
-      <h1>PDF Report Preview</h1>
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="wordmark">KAVACHAI</span>
+      <span class="eyebrow-pill">SIH PS 26188</span>
     </div>
-    <nav>
-      <a href="index.html">Screen Document</a>
+    <nav class="nav-links">
+      <a href="index.html">Screen</a>
       <a href="dashboard.html">Dashboard</a>
       <a href="qr.html">QR Verify</a>
       <a href="report.html" class="active">Reports</a>
     </nav>
+    <div class="nav-cta">
+      <button id="themeToggle" type="button" class="btn btn-secondary" onclick="toggleTheme()">🌙 Dark</button>
+      <a href="index.html" class="btn btn-primary">Start screening</a>
+    </div>
   </header>
 
-  <main class="container">
+  <div class="marquee-strip">
+    <span>MINISTRY OF HOME AFFAIRS&nbsp;&nbsp;&bull;&nbsp;&nbsp;SASHASTRA SEEMA BAL (SSB)&nbsp;&nbsp;&bull;&nbsp;&nbsp;AI-BASED FAKE IDENTITY &amp; DOCUMENT SCREENING&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  </div>
 
-    <div class="card">
-      <h2>Look Up Report by Passport Number</h2>
-      <p class="hint">
-        PDF reports are generated automatically after every /upload
-        request and served from the backend's /files/ route.
-      </p>
-      <input type="text" id="passportInput" placeholder="e.g. A1234567" style="padding:10px; width:250px; border-radius:6px; border:1px solid #ccc;">
-      <button id="lookupBtn" type="button">Load Report</button>
-      <button id="exportCsvBtn" type="button">Export All Records (CSV)</button>
-    </div>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">AUDIT TOOL</p>
+      <h1 class="display-lg" style="font-size:44px;">Pull up any<br>screening report.</h1>
+      <p class="body-lg hero-sub">PDF reports are generated automatically after every screening.</p>
+    </section>
 
-    <div class="card" id="reportCard" style="display:none;">
-      <h3>Report Preview</h3>
-      <iframe id="reportFrame" style="width:100%; height:600px; border:1px solid #ddd; border-radius:6px;"></iframe>
-      <p id="reportStatus"></p>
-    </div>
+    <section class="color-block color-block-cream">
+      <p class="eyebrow">LOOK UP</p>
+      <h2 class="headline">Search by passport number</h2>
+      <div class="card">
+        <p class="body-sm muted">Reports are served from the backend's <span class="mono-text">/files/</span> route. You can also export every record on file as a single CSV.</p>
+        <div style="display:flex; gap: var(--sp-sm); flex-wrap: wrap; margin-top: var(--sp-md);">
+          <input type="text" id="passportInput" placeholder="e.g. A1234567" class="text-input">
+          <button id="lookupBtn" type="button" class="btn btn-primary">Load report</button>
+          <button id="exportCsvBtn" type="button" class="btn btn-secondary">Export all records (CSV)</button>
+        </div>
+      </div>
+    </section>
 
+    <section id="reportCard" style="display:none; margin-bottom: var(--sp-xxl);">
+      <p class="eyebrow">RESULT</p>
+      <h2 class="headline">Report preview</h2>
+      <div class="card">
+        <iframe id="reportFrame" style="width:100%; height:600px; border:1px solid var(--hairline); border-radius: var(--r-md);"></iframe>
+        <p id="reportStatus" class="body-sm"></p>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    <p>SIH PS 26188 &mdash; Ministry of Home Affairs, Sashastra Seema Bal (SSB)</p>
+  <footer class="footer">
+    <div class="footer-top">
+      <span class="wordmark">KAVACHAI</span>
+      <div class="footer-links">
+        <a href="index.html">Screen</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="qr.html">QR Verify</a>
+        <a href="report.html">Reports</a>
+      </div>
+    </div>
+    <p class="caption footer-note">SIH PS 26188 — MINISTRY OF HOME AFFAIRS, SASHASTRA SEEMA BAL (SSB)</p>
   </footer>
+
+  <!-- SAHARA (chat inside widget) -->
+  <div class="sahara-widget" id="saharaWidget">
+    <button class="sahara-float" onclick="toggleSaharaChat()">🤖</button>
+    <div class="sahara-chat" id="saharaChatWindow" style="display:none;">
+      <div class="sahara-header">
+        <span>🤖 SAHARA Assistant</span>
+        <button onclick="toggleSaharaChat()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="sahara-messages" id="saharaMessages">
+        <div class="sahara-msg bot">Hello! Main SAHARA hoon — KAVACHAI ki assistant. Kuch bhi puchho.</div>
+      </div>
+      <div class="sahara-input-row">
+        <input type="text" id="saharaInput" placeholder="App ke baare mein puchho...">
+        <button onclick="sendSaharaMessage()">Send</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const BACKEND_URL = "http://localhost:8000";
-
     document.getElementById("lookupBtn").addEventListener("click", () => {
-      const passportNumber = document.getElementById("passportInput").value.trim();
-      if (!passportNumber) {
-        alert("Please enter a passport number.");
-        return;
-      }
-
-      const reportCard = document.getElementById("reportCard");
-      const reportFrame = document.getElementById("reportFrame");
-      const reportStatus = document.getElementById("reportStatus");
-
-      // PDF files are saved by the backend as reports/report_<passport_number>.pdf
-      const pdfUrl = `${BACKEND_URL}/files/report_${passportNumber}.pdf`;
-
-      reportFrame.src = pdfUrl;
-      reportStatus.textContent = `Loading report for ${passportNumber}...`;
-      reportCard.style.display = "block";
+      const pn=document.getElementById("passportInput").value.trim();
+      if(!pn){ alert("Please enter a passport number."); return; }
+      const rc=document.getElementById("reportCard"), rf=document.getElementById("reportFrame"), rs=document.getElementById("reportStatus");
+      rf.src=`${BACKEND_URL}/files/report_${pn}.pdf`; rs.textContent=`Loading report for ${pn}...`; rc.style.display="block";
     });
-
     document.getElementById("exportCsvBtn").addEventListener("click", async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/export/csv`);
-        const data = await res.json();
-        if (data.csv_path) {
-          window.open(BACKEND_URL + data.csv_path, "_blank");
-        }
-      } catch (err) {
-        alert("Failed to export CSV: " + err.message);
-      }
+      try{ const res=await fetch(`${BACKEND_URL}/export/csv`); const data=await res.json(); if(data.csv_path) window.open(BACKEND_URL+data.csv_path,"_blank"); }catch(err){ alert("Failed to export CSV: "+err.message); }
     });
+    function toggleTheme(){const h=document.documentElement,b=document.getElementById("themeToggle");if(h.getAttribute("data-theme")==="dark"){h.removeAttribute("data-theme");if(b)b.textContent="🌙 Dark";localStorage.setItem("theme","light");}else{h.setAttribute("data-theme","dark");if(b)b.textContent="☀️ Light";localStorage.setItem("theme","dark");}}
+    function initTheme(){const s=localStorage.getItem("theme"),b=document.getElementById("themeToggle");if(s==="dark"){document.documentElement.setAttribute("data-theme","dark");if(b)b.textContent="☀️ Light";}}
+    document.addEventListener("DOMContentLoaded", initTheme);
   </script>
-
+  <script src="sahara.js"></script>
 </body>
 </html>

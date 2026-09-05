@@ -3,153 +3,153 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard - AI Document Screening System</title>
+<title>Dashboard - KAVACHAI</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <header class="topbar">
-    <div class="logo-title">
-      <span class="badge">SSB</span>
-      <h1>Analytics Dashboard</h1>
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="wordmark">KAVACHAI</span>
+      <span class="eyebrow-pill">SIH PS 26188</span>
     </div>
-    <nav>
-      <a href="index.html">Screen Document</a>
+    <nav class="nav-links">
+      <a href="index.html">Screen</a>
       <a href="dashboard.html" class="active">Dashboard</a>
       <a href="qr.html">QR Verify</a>
       <a href="report.html">Reports</a>
     </nav>
+    <div class="nav-cta">
+      <button id="themeToggle" type="button" class="btn btn-secondary" onclick="toggleTheme()">🌙 Dark</button>
+      <a href="index.html" class="btn btn-primary">Start screening</a>
+    </div>
   </header>
 
-  <main class="container">
+  <div class="marquee-strip">
+    <span>MINISTRY OF HOME AFFAIRS&nbsp;&nbsp;&bull;&nbsp;&nbsp;SASHASTRA SEEMA BAL (SSB)&nbsp;&nbsp;&bull;&nbsp;&nbsp;AI-BASED FAKE IDENTITY &amp; DOCUMENT SCREENING&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  </div>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">ANALYTICS</p>
+      <h1 class="display-lg" style="font-size:44px;">Screening activity at a glance.</h1>
+      <p class="body-lg hero-sub">Live counts pulled straight from the backend's SQLite ledger.</p>
+    </section>
 
     <div class="stats-grid">
-      <div class="card">
-        <p class="hint">Total Screened</p>
-        <div class="stat-number" id="totalScreened">--</div>
-      </div>
-      <div class="card">
-        <p class="hint">High Risk</p>
-        <div class="stat-number" id="highRiskCount">--</div>
-      </div>
-      <div class="card">
-        <p class="hint">Low Risk</p>
-        <div class="stat-number" id="lowRiskCount">--</div>
-      </div>
-      <div class="card">
-        <p class="hint">Tampered Documents</p>
-        <div class="stat-number" id="tamperedCount">--</div>
-      </div>
+      <div class="card"><p class="caption">TOTAL SCREENED</p><div class="stat-number" id="totalScreened">--</div></div>
+      <div class="card"><p class="caption">HIGH RISK</p><div class="stat-number" id="highRiskCount">--</div></div>
+      <div class="card"><p class="caption">LOW RISK</p><div class="stat-number" id="lowRiskCount">--</div></div>
+      <div class="card"><p class="caption">TAMPERED DOCUMENTS</p><div class="stat-number" id="tamperedCount">--</div></div>
     </div>
 
-    <div class="card">
-      <h3>Risk Distribution</h3>
-      <div class="bar-chart" id="barChart">
-        <!-- bars are injected by JS -->
+    <section class="color-block color-block-lilac">
+      <p class="eyebrow">BREAKDOWN</p>
+      <h2 class="headline">Risk distribution</h2>
+      <div class="card" style="background:var(--canvas);">
+        <div class="bar-chart" id="barChart"></div>
       </div>
-    </div>
+    </section>
 
-    <div class="card">
-      <h3>Recent Records</h3>
-      <table style="width:100%; border-collapse: collapse;" id="recordsTable">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">Passport No.</th>
-            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">Name</th>
-            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">Risk Level</th>
-            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">Date</th>
-          </tr>
-        </thead>
-        <tbody id="recordsBody">
-        </tbody>
-      </table>
-    </div>
-
+    <section style="margin: var(--sp-xl) 0 var(--sp-xxl) 0;">
+      <p class="eyebrow">LOG</p>
+      <h2 class="headline">Recent records</h2>
+      <div class="card" style="overflow-x:auto;">
+        <table style="width:100%; border-collapse: collapse;" id="recordsTable">
+          <thead><tr><th class="caption" style="text-align:left;padding:10px;">Passport No.</th><th class="caption" style="text-align:left;padding:10px;">Name</th><th class="caption" style="text-align:left;padding:10px;">Risk Level</th><th class="caption" style="text-align:left;padding:10px;">Date</th></tr></thead>
+          <tbody id="recordsBody"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    <p>SIH PS 26188 &mdash; Ministry of Home Affairs, Sashastra Seema Bal (SSB)</p>
+  <footer class="footer">
+    <div class="footer-top">
+      <span class="wordmark">KAVACHAI</span>
+      <div class="footer-links">
+        <a href="index.html">Screen</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="qr.html">QR Verify</a>
+        <a href="report.html">Reports</a>
+      </div>
+    </div>
+    <p class="caption footer-note">SIH PS 26188 — MINISTRY OF HOME AFFAIRS, SASHASTRA SEEMA BAL (SSB)</p>
   </footer>
+
+  <!-- SAHARA (chat inside widget) -->
+  <div class="sahara-widget" id="saharaWidget">
+    <button class="sahara-float" onclick="toggleSaharaChat()">🤖</button>
+    <div class="sahara-chat" id="saharaChatWindow" style="display:none;">
+      <div class="sahara-header">
+        <span>🤖 SAHARA Assistant</span>
+        <button onclick="toggleSaharaChat()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="sahara-messages" id="saharaMessages">
+        <div class="sahara-msg bot">Hello! Main SAHARA hoon — KAVACHAI ki assistant. Kuch bhi puchho.</div>
+      </div>
+      <div class="sahara-input-row">
+        <input type="text" id="saharaInput" placeholder="App ke baare mein puchho...">
+        <button onclick="sendSaharaMessage()">Send</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const BACKEND_URL = "http://localhost:8000";
-
     async function loadStats() {
       try {
         const res = await fetch(`${BACKEND_URL}/stats`);
         const stats = await res.json();
-
         document.getElementById("totalScreened").textContent = stats.total_screened ?? 0;
         document.getElementById("highRiskCount").textContent = stats.high_risk_count ?? 0;
         document.getElementById("lowRiskCount").textContent = stats.low_risk_count ?? 0;
         document.getElementById("tamperedCount").textContent = stats.tampered_count ?? 0;
-
         renderBarChart(stats);
-      } catch (err) {
-        console.error("Failed to load stats:", err);
-      }
+      } catch(err) { console.error(err); }
     }
-
     function renderBarChart(stats) {
       const barChart = document.getElementById("barChart");
       barChart.innerHTML = "";
-
       const data = [
-        { label: "Low", value: stats.low_risk_count ?? 0, color: "#2e7d32" },
-        { label: "Medium", value: stats.medium_risk_count ?? 0, color: "#f9a825" },
-        { label: "High", value: stats.high_risk_count ?? 0, color: "#d32f2f" },
+        { label:"Low", value:stats.low_risk_count ?? 0, color:"#1ea64a" },
+        { label:"Medium", value:stats.medium_risk_count ?? 0, color:"#b5850a" },
+        { label:"High", value:stats.high_risk_count ?? 0, color:"#c0392b" }
       ];
-
-      const maxValue = Math.max(1, ...data.map((d) => d.value));
-
-      data.forEach((d) => {
-        const heightPct = (d.value / maxValue) * 100;
-
-        const wrap = document.createElement("div");
-        wrap.className = "bar-wrap";
-
-        const bar = document.createElement("div");
-        bar.className = "bar";
-        bar.style.height = heightPct + "%";
-        bar.style.background = d.color;
-        bar.innerHTML = `<span>${d.value}</span>`;
-
-        const label = document.createElement("div");
-        label.className = "bar-label";
-        label.textContent = d.label;
-
-        wrap.appendChild(bar);
-        wrap.appendChild(label);
-        barChart.appendChild(wrap);
+      const max = Math.max(1, ...data.map(d=>d.value));
+      data.forEach(d => {
+        const pct = (d.value/max)*100;
+        const wrap = document.createElement("div"); wrap.className="bar-wrap";
+        const bar = document.createElement("div"); bar.className="bar"; bar.style.height=pct+"%"; bar.style.background=d.color; bar.innerHTML=`<span>${d.value}</span>`;
+        const label = document.createElement("div"); label.className="bar-label"; label.textContent=d.label;
+        wrap.appendChild(bar); wrap.appendChild(label); barChart.appendChild(wrap);
       });
     }
-
     async function loadRecords() {
       try {
         const res = await fetch(`${BACKEND_URL}/records`);
         const records = await res.json();
-
         const tbody = document.getElementById("recordsBody");
         tbody.innerHTML = "";
-
-        records.slice(0, 20).forEach((r) => {
+        records.slice(0,20).forEach(r => {
           const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td style="padding:8px; border-bottom:1px solid #eee;">${r.passport_number || "--"}</td>
-            <td style="padding:8px; border-bottom:1px solid #eee;">${r.name || "--"}</td>
-            <td style="padding:8px; border-bottom:1px solid #eee;">${r.risk_level || "--"}</td>
-            <td style="padding:8px; border-bottom:1px solid #eee;">${r.created_at || "--"}</td>
-          `;
+          tr.innerHTML = `<td style="padding:10px;border-top:1px solid var(--hairline-soft);">${r.passport_number||"--"}</td><td style="padding:10px;border-top:1px solid var(--hairline-soft);">${r.name||"--"}</td><td style="padding:10px;border-top:1px solid var(--hairline-soft);">${r.risk_level||"--"}</td><td style="padding:10px;border-top:1px solid var(--hairline-soft);">${r.created_at||"--"}</td>`;
           tbody.appendChild(tr);
         });
-      } catch (err) {
-        console.error("Failed to load records:", err);
-      }
+      } catch(err) { console.error(err); }
     }
+    loadStats(); loadRecords();
 
-    loadStats();
-    loadRecords();
+    function toggleTheme() {
+      const html=document.documentElement, btn=document.getElementById("themeToggle");
+      if(html.getAttribute("data-theme")==="dark"){html.removeAttribute("data-theme"); if(btn)btn.textContent="🌙 Dark"; localStorage.setItem("theme","light");}
+      else{html.setAttribute("data-theme","dark"); if(btn)btn.textContent="☀️ Light"; localStorage.setItem("theme","dark");}
+    }
+    function initTheme(){
+      const saved=localStorage.getItem("theme"), btn=document.getElementById("themeToggle");
+      if(saved==="dark"){document.documentElement.setAttribute("data-theme","dark"); if(btn)btn.textContent="☀️ Light";}
+    }
+    document.addEventListener("DOMContentLoaded", initTheme);
   </script>
-
+  <script src="sahara.js"></script>
 </body>
 </html>
