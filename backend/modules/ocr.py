@@ -1,80 +1,114 @@
-# ocr.py
-# Ye file passport image se text nikalti hai (naam, passport number, date, etc.)
+"""
+modules/ocr.py
+Extracts identity fields from a document image.
+Primary method: PassportEye MRZ reader (works for passports/visas
+with a Machine Readable Zone).
+Fallback: pytesseract raw text + regex, for documents without an MRZ
+(e.g. Aadhaar, driving licence).
+"""
 
-from passporteye import read_mrz
-import pytesseract
-from PIL import Image
-import cv2
+import os
+import re
 
-# Windows users: agar tesseract path set nahi hai to ye line uncomment karo aur apna path daalo
-# pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+try:
+    from passporteye import read_mrz
+except ImportError:
+    read_mrz = None
+
+try:
+    import pytesseract
+    from PIL import Image
+except ImportError:
+    pytesseract = None
+    Image = None
 
 
-def extract_mrz_data(image_path):
-    """
-    Ye function passport ki MRZ (Machine Readable Zone) - passport ke neeche wali 
-    2 lines - padhta hai. Isme naam, passport number, expiry date hota hai.
-    """
+def _empty_fields():
+    return {
+        "name": None,
+        "passport_number": None,
+        "nationality": None,
+        "date_of_birth": None,
+        "date_of_expiry": None,
+        "gender": None,
+        "raw_mrz_valid": False,
+    }
+
+
+def _extract_with_mrz(image_path: str) -> dict:
+    """Try reading the MRZ (Machine Readable Zone) of the document."""
+    fields = _empty_fields()
+
+    if read_mrz is None:
+        return None
+
     try:
         mrz = read_mrz(image_path)
-        
         if mrz is None:
-            return {
-                "success": False,
-                "message": "MRZ nahi mila. Image clear nahi hai ya passport nahi hai."
-            }
-        
-        mrz_data = mrz.to_dict()
-        
-        result = {
-            "success": True,
-            "surname": mrz_data.get("surname", ""),
-            "given_names": mrz_data.get("names", ""),
-            "passport_number": mrz_data.get("number", ""),
-            "nationality": mrz_data.get("nationality", ""),
-            "date_of_birth": mrz_data.get("date_of_birth", ""),
-            "expiration_date": mrz_data.get("expiration_date", ""),
-            "sex": mrz_data.get("sex", ""),
-            "country": mrz_data.get("country", ""),
-            "mrz_valid_score": mrz_data.get("valid_score", 0)
-        }
-        
-        return result
-    
-    except Exception as e:
-        return {
-            "success": False,
-            "message": f"Error aaya: {str(e)}"
-        }
+            return None
+
+        data = mrz.to_dict()
+        fields["name"] = f"{data.get('names', '')} {data.get('surname', '')}".strip()
+        fields["passport_number"] = data.get("number")
+        fields["nationality"] = data.get("nationality")
+        fields["date_of_birth"] = data.get("date_of_birth")
+        fields["date_of_expiry"] = data.get("expiration_date")
+        fields["gender"] = data.get("sex")
+        fields["raw_mrz_valid"] = data.get("valid_score", 0) >= 80
+        return fields
+    except Exception:
+        return None
 
 
-def extract_full_text(image_path):
-    """
-    Ye function pure passport image se saara text nikalta hai
-    (sirf MRZ nahi, poora passport)
-    """
+def _extract_with_ocr_fallback(image_path: str) -> dict:
+    """Basic pytesseract text extraction + regex, used when MRZ reading fails."""
+    fields = _empty_fields()
+
+    if pytesseract is None or Image is None:
+        fields["error"] = "pytesseract/PIL not installed"
+        return fields
+
     try:
-        image = cv2.imread(image_path)
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        text = pytesseract.image_to_string(gray_image)
-        
-        return {
-            "success": True,
-            "full_text": text
-        }
+        text = pytesseract.image_to_string(Image.open(image_path))
+
+        # Very simple regex heuristics - adjust to your document formats
+        passport_match = re.search(r"\b([A-Z][0-9]{7})\b", text)
+        if passport_match:
+            fields["passport_number"] = passport_match.group(1)
+
+        dob_match = re.search(r"\b(\d{2}[/-]\d{2}[/-]\d{4})\b", text)
+        if dob_match:
+            fields["date_of_birth"] = dob_match.group(1)
+
+        name_match = re.search(r"Name[:\s]+([A-Za-z ]+)", text)
+        if name_match:
+            fields["name"] = name_match.group(1).strip()
+
+        fields["raw_mrz_valid"] = False
+        fields["ocr_raw_text"] = text[:500]  # keep a short snippet for debugging
     except Exception as e:
-        return {
-            "success": False,
-            "message": f"Error aaya: {str(e)}"
-        }
+        fields["error"] = f"OCR fallback failed: {str(e)}"
+
+    return fields
 
 
-# Test karne ke liye (isko seedha run kar sakte ho)
+def extract_fields(image_path: str) -> dict:
+    """
+    Main entry point used by main.py.
+    Tries MRZ first (best for passports/visas), then falls back to
+    generic OCR + regex for other document types.
+    """
+    if not os.path.exists(image_path):
+        fields = _empty_fields()
+        fields["error"] = "Image file not found"
+        return fields
+
+    mrz_fields = _extract_with_mrz(image_path)
+    if mrz_fields and mrz_fields.get("passport_number"):
+        return mrz_fields
+
+    return _extract_with_ocr_fallback(image_path)
+
+
 if __name__ == "__main__":
-    test_image = "sample_passport.jpg"  # apni test image ka naam yaha daalo
-    
-    print("--- MRZ Data ---")
-    print(extract_mrz_data(test_image))
-    
-    print("\n--- Full Text ---")
-    print(extract_full_text(test_image))
+    print(extract_fields("sample_passport.jpg"))

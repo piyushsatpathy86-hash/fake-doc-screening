@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Verify - AI Document Screening System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="logo-title">
+      <span class="badge">SSB</span>
+      <h1>QR Code Verification</h1>
+    </div>
+    <nav>
+      <a href="index.html">Screen Document</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="qr.html" class="active">QR Verify</a>
+      <a href="report.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <div class="card">
+      <h2>Look Up by Passport Number</h2>
+      <p class="hint">
+        Enter the passport number to view its most recent QR code and
+        screening result. QR codes are generated automatically after
+        every /upload request and served from the backend's /files/ route.
+      </p>
+      <input type="text" id="passportInput" placeholder="e.g. A1234567" style="padding:10px; width:250px; border-radius:6px; border:1px solid #ccc;">
+      <button id="lookupBtn" type="button">Look Up</button>
+    </div>
+
+    <div class="card" id="qrResultCard" style="display:none;">
+      <h3>QR Code</h3>
+      <img id="qrImage" class="preview" alt="QR Code" style="max-width:250px;">
+      <p id="qrStatus"></p>
+    </div>
+
+  </main>
+
+  <footer>
+    <p>SIH PS 26188 &mdash; Ministry of Home Affairs, Sashastra Seema Bal (SSB)</p>
+  </footer>
+
+  <script>
+    const BACKEND_URL = "http://localhost:8000";
+
+    document.getElementById("lookupBtn").addEventListener("click", () => {
+      const passportNumber = document.getElementById("passportInput").value.trim();
+      if (!passportNumber) {
+        alert("Please enter a passport number.");
+        return;
+      }
+
+      const qrCard = document.getElementById("qrResultCard");
+      const qrImage = document.getElementById("qrImage");
+      const qrStatus = document.getElementById("qrStatus");
+
+      // QR files are saved by the backend as reports/qr_<passport_number>.png
+      const qrUrl = `${BACKEND_URL}/files/qr_${passportNumber}.png`;
+
+      qrImage.onload = () => {
+        qrStatus.textContent = "QR code found.";
+      };
+      qrImage.onerror = () => {
+        qrStatus.textContent = "No QR code found for this passport number. Run a screening first.";
+      };
+
+      qrImage.src = qrUrl;
+      qrCard.style.display = "block";
+    });
+  </script>
+
+</body>
+</html>

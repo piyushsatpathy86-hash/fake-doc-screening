@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Document Screening System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="logo-title">
+      <span class="badge">SSB</span>
+      <h1>AI-Based Fake Identity &amp; Document Screening System</h1>
+    </div>
+    <nav>
+      <a href="index.html" class="active">Screen Document</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="qr.html">QR Verify</a>
+      <a href="report.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <section class="upload-grid">
+
+      <div class="card">
+        <h2>1. Upload Document</h2>
+        <p class="hint">Passport, Visa, Aadhaar, or Driving Licence</p>
+        <input type="file" id="docInput" accept="image/*">
+        <img id="docPreview" class="preview" alt="Document preview">
+      </div>
+
+      <div class="card">
+        <h2>2. Live Photo</h2>
+        <p class="hint">Upload a selfie or capture using the camera</p>
+        <input type="file" id="liveInput" accept="image/*">
+        <div class="camera-controls">
+          <button id="startCameraBtn" type="button">Open Camera</button>
+          <button id="captureBtn" type="button" disabled>Capture</button>
+        </div>
+        <video id="video" class="preview" autoplay playsinline style="display:none;"></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <img id="livePreview" class="preview" alt="Live photo preview">
+      </div>
+
+    </section>
+
+    <div class="analyze-bar">
+      <button id="analyzeBtn" type="button">Analyze Document</button>
+      <span id="statusText"></span>
+    </div>
+
+    <section id="resultsSection" class="results" style="display:none;">
+      <h2>Screening Results</h2>
+
+      <div class="results-grid">
+
+        <div class="card">
+          <h3>Risk Assessment</h3>
+          <div id="riskLevel" class="risk-badge">--</div>
+          <p>Risk Score: <span id="riskScore">--</span> / 100</p>
+        </div>
+
+        <div class="card">
+          <h3>Document Type</h3>
+          <p id="documentType">--</p>
+        </div>
+
+        <div class="card">
+          <h3>Face Match</h3>
+          <p id="faceMatch">--</p>
+          <p>Similarity: <span id="similarity">--</span></p>
+        </div>
+
+        <div class="card">
+          <h3>Liveness</h3>
+          <p id="livenessResult">--</p>
+        </div>
+
+        <div class="card">
+          <h3>Tamper / Noise Score</h3>
+          <p>Tamper: <span id="tamperScore">--</span></p>
+          <p>Noise: <span id="noiseScore">--</span></p>
+        </div>
+
+        <div class="card">
+          <h3>Blockchain Hash</h3>
+          <p id="blockchainHash" class="mono-text">--</p>
+        </div>
+
+      </div>
+
+      <div class="card">
+        <h3>Extracted Fields</h3>
+        <pre id="extractedFields">--</pre>
+      </div>
+
+      <div class="card">
+        <h3>Validation Errors</h3>
+        <ul id="errorsList"></ul>
+      </div>
+
+      <div class="card">
+        <h3>Tamper Heatmap</h3>
+        <img id="heatmapImage" class="preview" alt="Tamper heatmap">
+      </div>
+
+      <div class="card links-card">
+        <a id="pdfLink" href="#" target="_blank">Download PDF Report</a>
+        <a id="qrLink" href="#" target="_blank">View QR Code</a>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer>
+    <p>SIH PS 26188 &mdash; Ministry of Home Affairs, Sashastra Seema Bal (SSB)</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
