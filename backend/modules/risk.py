@@ -8,6 +8,11 @@ Weights:
   tamper     -> up to 30 points (tamper_score * 30)
   face match -> 30 points if no match
   liveness   -> 10 points if failed
+
+Genuine Check:
+  If face_match is True and tamper_score < 0.15, validation errors
+  are ignored (set to 0) because OCR may miss fields on synthetic
+  documents but the document is likely authentic.
 """
 
 
@@ -27,10 +32,15 @@ def calculate_risk(validation_errors: list, tamper_score: float, face_match: boo
 
     # ---- 1. Validation score (max 45) ----
     num_errors = len(validation_errors) if validation_errors else 0
-    validation_component = min(num_errors * 15, 45)
+    tamper_score = max(0.0, min(float(tamper_score), 1.0))
+
+    # Genuine check: if face matches and tamper is low, ignore validation errors
+    if face_match and tamper_score < 0.15:
+        validation_component = 0
+    else:
+        validation_component = min(num_errors * 15, 45)
 
     # ---- 2. Tamper score (max 30) ----
-    tamper_score = max(0.0, min(float(tamper_score), 1.0))
     tamper_component = tamper_score * 30
 
     # ---- 3. Face match (30) ----
@@ -63,10 +73,20 @@ def calculate_risk(validation_errors: list, tamper_score: float, face_match: boo
 
 
 if __name__ == "__main__":
-    result = calculate_risk(
+    # Test 1: Face match true, low tamper -> LOW (validation ignored)
+    result1 = calculate_risk(
+        validation_errors=["Expiry date could not be extracted", "MRZ checksum validation failed"],
+        tamper_score=0.0255,
+        face_match=True,
+        liveness_passed=True,
+    )
+    print("Genuine case (should be LOW):", result1)
+
+    # Test 2: Face mismatch -> HIGH
+    result2 = calculate_risk(
         validation_errors=["Expiry date could not be extracted", "MRZ checksum validation failed"],
         tamper_score=0.0255,
         face_match=False,
         liveness_passed=True,
     )
-    print(result)
+    print("Mismatch case (should be HIGH):", result2)
