@@ -2,7 +2,8 @@ fastapi==0.110.0
 uvicorn==0.29.0
 python-multipart==0.0.9
 passporteye==2.1.0
-deepface==0.0.79
+deepface>=0.0.93
+tf-keras>=2.17
 opencv-python==4.9.0.80
 pillow==10.2.0
 numpy==1.26.4
@@ -11,4 +12,3 @@ qrcode==7.4.2
 reportlab==4.1.0
 scikit-image==0.22.0
 pytesseract==0.3.10
-pyzbar==0.1.9
