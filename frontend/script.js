@@ -1,23 +1,28 @@
 // ==========================================================
-// AI Document Screening System - Frontend logic
+// AI Document Screening System - Frontend logic (Null-safe)
 // ==========================================================
 
 const BACKEND_URL = "http://localhost:8000";
 
-// ---- Element references ----
-const docInput = document.getElementById("docInput");
-const liveInput = document.getElementById("liveInput");
-const docPreview = document.getElementById("docPreview");
-const livePreview = document.getElementById("livePreview");
+// ---- Safe element getter ----
+function getEl(id) {
+  return document.getElementById(id);
+}
 
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const startCameraBtn = document.getElementById("startCameraBtn");
-const captureBtn = document.getElementById("captureBtn");
+// ---- Element references (safe) ----
+const docInput = getEl("docInput");
+const liveInput = getEl("liveInput");
+const docPreview = getEl("docPreview");
+const livePreview = getEl("livePreview");
 
-const analyzeBtn = document.getElementById("analyzeBtn");
-const statusText = document.getElementById("statusText");
-const resultsSection = document.getElementById("resultsSection");
+const video = getEl("video");
+const canvas = getEl("canvas");
+const startCameraBtn = getEl("startCameraBtn");
+const captureBtn = getEl("captureBtn");
+
+const analyzeBtn = getEl("analyzeBtn");
+const statusText = getEl("statusText");
+const resultsSection = getEl("resultsSection");
 
 let docFile = null;
 let liveFile = null;
@@ -26,7 +31,7 @@ let cameraStream = null;
 // ---- THEME TOGGLE ----
 function toggleTheme() {
   const html = document.documentElement;
-  const btn = document.getElementById("themeToggle");
+  const btn = getEl("themeToggle");
 
   if (html.getAttribute("data-theme") === "dark") {
     html.removeAttribute("data-theme");
@@ -41,7 +46,7 @@ function toggleTheme() {
 
 function initTheme() {
   const saved = localStorage.getItem("theme");
-  const btn = document.getElementById("themeToggle");
+  const btn = getEl("themeToggle");
   if (saved === "dark") {
     document.documentElement.setAttribute("data-theme", "dark");
     if (btn) btn.textContent = "☀️ Light";
@@ -74,7 +79,7 @@ function playAlertSound() {
     const gainNode = audioCtx.createGain();
 
     oscillator.type = "sine";
-    oscillator.frequency.value = 880; // Hz
+    oscillator.frequency.value = 880;
     gainNode.gain.value = 0.3;
 
     oscillator.connect(gainNode);
@@ -89,11 +94,11 @@ function playAlertSound() {
 
 // ---- ANIMATED RISK GAUGE ----
 function animateRiskGauge(score) {
-  const circle = document.getElementById("riskGaugeCircle");
-  const text = document.getElementById("riskGaugeText");
-  if (!circle || !text) return;
+  const circle = getEl("riskGaugeCircle");
+  const text = getEl("riskGaugeText");
+  if (!circle || !text) return; // agar elements nahi hai toh chupchaap nikal jao
 
-  const maxOffset = 314; // circumference 2*pi*50 ≈ 314
+  const maxOffset = 314;
   const targetOffset = maxOffset - (Math.min(score, 100) / 100) * maxOffset;
 
   circle.style.transition = "stroke-dashoffset 1.2s ease";
@@ -110,150 +115,179 @@ function animateRiskGauge(score) {
 }
 
 // ---- Document upload preview ----
-docInput.addEventListener("change", (e) => {
-  docFile = e.target.files[0];
-  if (docFile) {
-    docPreview.src = URL.createObjectURL(docFile);
-  }
-});
+if (docInput) {
+  docInput.addEventListener("change", (e) => {
+    docFile = e.target.files[0];
+    if (docFile && docPreview) {
+      docPreview.src = URL.createObjectURL(docFile);
+    }
+  });
+}
 
 // ---- Live photo upload preview ----
-liveInput.addEventListener("change", (e) => {
-  liveFile = e.target.files[0];
-  if (liveFile) {
-    livePreview.src = URL.createObjectURL(liveFile);
-    video.style.display = "none";
-  }
-});
+if (liveInput) {
+  liveInput.addEventListener("change", (e) => {
+    liveFile = e.target.files[0];
+    if (liveFile && livePreview) {
+      livePreview.src = URL.createObjectURL(liveFile);
+      if (video) video.style.display = "none";
+    }
+  });
+}
 
 // ---- Camera capture ----
-startCameraBtn.addEventListener("click", async () => {
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = cameraStream;
-    video.style.display = "block";
-    livePreview.src = "";
-    captureBtn.disabled = false;
-  } catch (err) {
-    alert("Could not access camera: " + err.message);
-  }
-});
+if (startCameraBtn) {
+  startCameraBtn.addEventListener("click", async () => {
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (video) {
+        video.srcObject = cameraStream;
+        video.style.display = "block";
+      }
+      if (livePreview) livePreview.src = "";
+      if (captureBtn) captureBtn.disabled = false;
+    } catch (err) {
+      alert("Could not access camera: " + err.message);
+    }
+  });
+}
 
-captureBtn.addEventListener("click", () => {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+if (captureBtn) {
+  captureBtn.addEventListener("click", () => {
+    if (!canvas || !video) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  canvas.toBlob((blob) => {
-    liveFile = new File([blob], "live_capture.jpg", { type: "image/jpeg" });
-    livePreview.src = URL.createObjectURL(liveFile);
-  }, "image/jpeg");
+    canvas.toBlob((blob) => {
+      liveFile = new File([blob], "live_capture.jpg", { type: "image/jpeg" });
+      if (livePreview) livePreview.src = URL.createObjectURL(liveFile);
+    }, "image/jpeg");
 
-  // Stop the camera after capture
-  if (cameraStream) {
-    cameraStream.getTracks().forEach((track) => track.stop());
-  }
-  video.style.display = "none";
-  captureBtn.disabled = true;
-});
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+    }
+    if (video) video.style.display = "none";
+    if (captureBtn) captureBtn.disabled = true;
+  });
+}
 
 // ---- Analyze button ----
-analyzeBtn.addEventListener("click", async () => {
-  if (!docFile || !liveFile) {
-    alert("Please provide both a document image and a live photo.");
-    return;
-  }
-
-  statusText.textContent = "Processing, please wait...";
-  analyzeBtn.disabled = true;
-  resultsSection.style.display = "none";
-
-  const formData = new FormData();
-  formData.append("doc_image", docFile);
-  formData.append("live_image", liveFile);
-
-  try {
-    const response = await fetch(`${BACKEND_URL}/upload`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server returned status ${response.status}`);
+if (analyzeBtn) {
+  analyzeBtn.addEventListener("click", async () => {
+    if (!docFile || !liveFile) {
+      alert("Please provide both a document image and a live photo.");
+      return;
     }
 
-    const result = await response.json();
-    renderResults(result);
-    statusText.textContent = "Analysis complete.";
-  } catch (err) {
-    statusText.textContent = "Error: " + err.message;
-    alert("Analysis failed: " + err.message);
-  } finally {
-    analyzeBtn.disabled = false;
-  }
-});
+    if (statusText) statusText.textContent = "Processing, please wait...";
+    analyzeBtn.disabled = true;
+    if (resultsSection) resultsSection.style.display = "none";
 
-// ---- Render results in the UI ----
+    const formData = new FormData();
+    formData.append("doc_image", docFile);
+    formData.append("live_image", liveFile);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const result = await response.json();
+      renderResults(result);
+      if (statusText) statusText.textContent = "Analysis complete.";
+    } catch (err) {
+      if (statusText) statusText.textContent = "Error: " + err.message;
+      alert("Analysis failed: " + err.message);
+    } finally {
+      analyzeBtn.disabled = false;
+    }
+  });
+}
+
+// ---- Render results in the UI (null-safe) ----
 function renderResults(result) {
-  resultsSection.style.display = "block";
+  if (resultsSection) resultsSection.style.display = "block";
 
-  const riskLevelEl = document.getElementById("riskLevel");
-  riskLevelEl.textContent = result.risk_level || "--";
-  riskLevelEl.className = "risk-badge " + (result.risk_level || "");
+  // Risk level
+  const riskLevelEl = getEl("riskLevel");
+  if (riskLevelEl) {
+    riskLevelEl.textContent = result.risk_level || "--";
+    riskLevelEl.className = "risk-badge " + (result.risk_level || "");
+  }
 
-  // 🔥 VOICE ALERT + SOUND EFFECT
+  // Voice + sound for HIGH risk
   voiceAlert(result.risk_level);
   if (result.risk_level === "HIGH") {
     playAlertSound();
   }
 
+  // Risk score
   const riskScore = result.risk_score ?? 0;
-  document.getElementById("riskScore").textContent = riskScore;
+  const riskScoreEl = getEl("riskScore");
+  if (riskScoreEl) riskScoreEl.textContent = riskScore;
   animateRiskGauge(riskScore);
 
-  document.getElementById("documentType").textContent = result.document_type || "--";
-  document.getElementById("faceMatch").textContent = result.face_match ? "Match" : "No Match";
-  document.getElementById("similarity").textContent = result.similarity ?? "--";
-  document.getElementById("livenessResult").textContent = result.liveness_passed
-    ? "Passed"
-    : "Failed";
-  document.getElementById("tamperScore").textContent = result.tamper_score ?? "--";
-  document.getElementById("noiseScore").textContent = result.noise_score ?? "--";
-  document.getElementById("blockchainHash").textContent = result.blockchain_hash || "--";
+  // Simple fields (safe)
+  setText("documentType", result.document_type || "--");
+  setText("faceMatch", result.face_match ? "Match" : "No Match");
+  setText("similarity", result.similarity ?? "--");
+  setText("livenessResult", result.liveness_passed ? "Passed" : "Failed");
+  setText("tamperScore", result.tamper_score ?? "--");
+  setText("noiseScore", result.noise_score ?? "--");
+  setText("blockchainHash", result.blockchain_hash || "--");
 
-  document.getElementById("extractedFields").textContent = JSON.stringify(
-    result.fields || {},
-    null,
-    2
-  );
+  // Extracted fields
+  const fieldsEl = getEl("extractedFields");
+  if (fieldsEl) {
+    fieldsEl.textContent = JSON.stringify(result.fields || {}, null, 2);
+  }
 
-  const errorsList = document.getElementById("errorsList");
-  errorsList.innerHTML = "";
-  if (result.errors && result.errors.length > 0) {
-    result.errors.forEach((err) => {
+  // Validation errors
+  const errorsList = getEl("errorsList");
+  if (errorsList) {
+    errorsList.innerHTML = "";
+    if (result.errors && result.errors.length > 0) {
+      result.errors.forEach((err) => {
+        const li = document.createElement("li");
+        li.textContent = err;
+        errorsList.appendChild(li);
+      });
+    } else {
       const li = document.createElement("li");
-      li.textContent = err;
+      li.textContent = "No validation errors found.";
       errorsList.appendChild(li);
-    });
-  } else {
-    const li = document.createElement("li");
-    li.textContent = "No validation errors found.";
-    errorsList.appendChild(li);
+    }
   }
 
-  const heatmapImage = document.getElementById("heatmapImage");
-  if (result.heatmap) {
-    heatmapImage.src = "data:image/jpeg;base64," + result.heatmap;
-    heatmapImage.style.display = "block";
-  } else {
-    heatmapImage.style.display = "none";
+  // Heatmap
+  const heatmapImage = getEl("heatmapImage");
+  if (heatmapImage) {
+    if (result.heatmap) {
+      heatmapImage.src = "data:image/jpeg;base64," + result.heatmap;
+      heatmapImage.style.display = "block";
+    } else {
+      heatmapImage.style.display = "none";
+    }
   }
 
-  const pdfLink = document.getElementById("pdfLink");
-  const qrLink = document.getElementById("qrLink");
-  pdfLink.href = result.pdf_report ? BACKEND_URL + result.pdf_report : "#";
-  qrLink.href = result.qr_code ? BACKEND_URL + result.qr_code : "#";
+  // PDF/QR links
+  const pdfLink = getEl("pdfLink");
+  const qrLink = getEl("qrLink");
+  if (pdfLink) pdfLink.href = result.pdf_report ? BACKEND_URL + result.pdf_report : "#";
+  if (qrLink) qrLink.href = result.qr_code ? BACKEND_URL + result.qr_code : "#";
 
-  resultsSection.scrollIntoView({ behavior: "smooth" });
+  if (resultsSection) resultsSection.scrollIntoView({ behavior: "smooth" });
+}
+
+// Helper: safe set text
+function setText(id, value) {
+  const el = getEl(id);
+  if (el) el.textContent = value;
 }
