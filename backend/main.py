@@ -18,6 +18,7 @@ import cv2
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Local modules
 from modules import ocr
@@ -56,6 +57,13 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 
 # Serve generated PDFs/QR codes/heatmaps so the frontend can load them directly
 app.mount("/files", StaticFiles(directory=REPORTS_DIR), name="files")
+
+# Serve frontend static files
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+@app.get("/")
+def index():
+    return FileResponse("frontend/index.html")
 
 
 def save_upload_file(upload_file: UploadFile, destination: str) -> str:
@@ -126,7 +134,7 @@ async def upload_documents(
     # ---- 4. Validation ----
     validation_errors = validation.validate_document(fields, doc_type)
 
-        # ---- 5. Hash-based verification + Tamper detection ----
+    # ---- 5. Hash-based verification + Tamper detection ----
     with open(doc_path, 'rb') as f:
         doc_hash = hashlib.sha256(f.read()).hexdigest()
 
