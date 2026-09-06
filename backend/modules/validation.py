@@ -1,10 +1,6 @@
 """
 modules/validation.py
-Validates fields extracted by ocr.py:
-  - expiry date must not be in the past
-  - passport number must match "letter + 7 digits" format
-  - passport number must not appear in data/blacklist.csv
-Returns a list of human-readable error strings.
+Validates fields extracted by ocr.py based on the detected document type.
 """
 
 import os
@@ -50,9 +46,9 @@ def _try_parse_date(date_str: str):
     return None
 
 
-def validate_document(fields: dict) -> list:
+def validate_document(fields: dict, document_type: str = None) -> list:
     """
-    Run validation checks on extracted fields.
+    Run validation checks based on the document type.
     Returns a list of error strings (empty list = document looks valid).
     """
     errors = []
@@ -60,42 +56,73 @@ def validate_document(fields: dict) -> list:
     if not fields:
         return ["No fields extracted from document"]
 
-    passport_number = fields.get("passport_number")
+    doc_type = (document_type or "").lower()
 
-    # 1. Passport number format: 1 letter followed by 7 digits (e.g. A1234567)
-    if not passport_number:
-        errors.append("Passport number could not be extracted")
-    elif not re.match(r"^[A-Za-z][0-9]{7}$", str(passport_number).strip()):
-        errors.append("Passport number format is invalid (expected: 1 letter + 7 digits)")
+    # 1. Passport-specific checks (applied if passport, unknown, or empty)
+    if doc_type in ("passport", "unknown", ""):
+        passport_number = fields.get("passport_number")
 
-    # 2. Expiry date must not be in the past
-    expiry_date = fields.get("date_of_expiry")
-    if expiry_date:
-        parsed_expiry = _try_parse_date(expiry_date)
-        if parsed_expiry is None:
-            errors.append("Expiry date format is invalid")
-        elif parsed_expiry < datetime.now():
-            errors.append("Document has expired")
-    else:
-        errors.append("Expiry date could not be extracted")
+        if not passport_number:
+            errors.append("Passport number could not be extracted")
+        elif not re.match(r"^[A-Za-z][0-9]{7}$", str(passport_number).strip()):
+            errors.append("Passport number format is invalid (expected: 1 letter + 7 digits)")
 
-    # 3. Blacklist check
-    if passport_number:
-        blacklist = _load_blacklist()
-        if str(passport_number).strip().upper() in blacklist:
-            errors.append(f"Passport number {passport_number} appears on the blacklist")
+        expiry_date = fields.get("date_of_expiry")
+        if expiry_date:
+            parsed_expiry = _try_parse_date(expiry_date)
+            if parsed_expiry is None:
+                errors.append("Expiry date format is invalid")
+            elif parsed_expiry < datetime.now():
+                errors.append("Document has expired")
+        else:
+            errors.append("Expiry date could not be extracted")
 
-    # 4. MRZ checksum validity, if OCR reported it
-    if fields.get("raw_mrz_valid") is False and fields.get("passport_number"):
-        errors.append("MRZ checksum validation failed")
+        # Blacklist check
+        if passport_number:
+            blacklist = _load_blacklist()
+            if str(passport_number).strip().upper() in blacklist:
+                errors.append(f"Passport number {passport_number} appears on the blacklist")
+
+        # MRZ checksum validity
+        if fields.get("raw_mrz_valid") is False and passport_number:
+            errors.append("MRZ checksum validation failed")
+
+    # 2. Aadhaar-specific checks
+    elif doc_type == "aadhaar":
+        aadhaar_number = fields.get("aadhaar_number") or fields.get("passport_number")
+        if not aadhaar_number:
+            errors.append("Aadhaar number could not be extracted")
+        elif not re.match(r"^\d{12}$", str(aadhaar_number).replace(" ", "")):
+            errors.append("Aadhaar number format is invalid (expected: 12 digits)")
+
+    # 3. Driving license-specific checks
+    elif doc_type == "driving_license":
+        dl_number = fields.get("dl_number") or fields.get("passport_number")
+        if not dl_number:
+            errors.append("Driving license number could not be extracted")
+        # Basic DL format: two letters, two digits, space, 11 alphanumeric (example)
+        elif not re.match(r"^[A-Z]{2}\d{2}\s?[A-Z0-9]{11}$", str(dl_number).strip()):
+            errors.append("Driving license number format is invalid")
+
+    # 4. Visa-specific checks
+    elif doc_type == "visa":
+        visa_number = fields.get("visa_number") or fields.get("passport_number")
+        if not visa_number:
+            errors.append("Visa number could not be extracted")
+        elif not re.match(r"^[A-Za-z]\d{7}$", str(visa_number).strip()):
+            errors.append("Visa number format is invalid (expected: letter + 7 digits)")
 
     return errors
 
 
 if __name__ == "__main__":
-    sample_fields = {
+    sample_passport = {
         "passport_number": "A1234567",
         "date_of_expiry": "2030-01-01",
         "raw_mrz_valid": True,
     }
-    print(validate_document(sample_fields))
+    sample_aadhaar = {
+        "aadhaar_number": "951234678901",
+    }
+    print("Passport:", validate_document(sample_passport, "passport"))
+    print("Aadhaar:", validate_document(sample_aadhaar, "aadhaar"))

@@ -3,7 +3,7 @@ main.py
 FastAPI application for the AI-Based Fake Identity & Document
 Screening System (SIH PS 26188).
 
-Pipeline: OCR -> validation -> document type -> tamper detection ->
+Pipeline: OCR -> document type detection -> validation -> tamper detection ->
 noise analysis -> face match -> liveness -> risk scoring ->
 blockchain logging -> SQLite storage -> PDF report + QR code.
 """
@@ -118,11 +118,11 @@ async def upload_documents(
     # ---- 2. OCR ----
     fields = ocr.extract_fields(doc_path)
 
-    # ---- 3. Validation ----
-    validation_errors = validation.validate_document(fields)
-
-    # ---- 4. Document type detection ----
+    # ---- 3. Document type detection (pehle) ----
     doc_type = document_type.detect_document_type(doc_path)
+
+    # ---- 4. Validation (document type ke hisaab se) ----
+    validation_errors = validation.validate_document(fields, doc_type)
 
     # ---- 5. Tamper detection (ELA) ----
     tamper_score, heatmap_image = tamper.detect_tampering(doc_path, output_dir=UPLOAD_DIR)
