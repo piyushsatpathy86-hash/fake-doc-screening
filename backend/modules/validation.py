@@ -83,9 +83,17 @@ def validate_document(fields: dict, document_type: str = None) -> list:
             if str(passport_number).strip().upper() in blacklist:
                 errors.append(f"Passport number {passport_number} appears on the blacklist")
 
-        # MRZ checksum validity
-        if fields.get("raw_mrz_valid") is False and passport_number:
+        # MRZ checksum validity.
+        # raw_mrz_valid has three states now (see ocr.py):
+        #   False -> an MRZ WAS read but its checksum failed -> real red flag
+        #   None  -> no MRZ could be read at all (fell back to OCR) ->
+        #            informational only, NOT a forgery signal by itself
+        #   True  -> checksum passed, no error
+        mrz_status = fields.get("raw_mrz_valid")
+        if mrz_status is False and passport_number:
             errors.append("MRZ checksum validation failed")
+        elif mrz_status is None and passport_number:
+            errors.append("MRZ could not be read (OCR fallback used)")
 
     # 2. Aadhaar-specific checks
     elif doc_type == "aadhaar":
@@ -121,8 +129,14 @@ if __name__ == "__main__":
         "date_of_expiry": "2030-01-01",
         "raw_mrz_valid": True,
     }
+    sample_passport_fallback = {
+        "passport_number": "A1234567",
+        "date_of_expiry": "2030-01-01",
+        "raw_mrz_valid": None,
+    }
     sample_aadhaar = {
         "aadhaar_number": "951234678901",
     }
-    print("Passport:", validate_document(sample_passport, "passport"))
+    print("Passport (MRZ read OK):", validate_document(sample_passport, "passport"))
+    print("Passport (OCR fallback):", validate_document(sample_passport_fallback, "passport"))
     print("Aadhaar:", validate_document(sample_aadhaar, "aadhaar"))

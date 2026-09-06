@@ -3,7 +3,7 @@ main.py
 FastAPI application for the AI-Based Fake Identity & Document
 Screening System (SIH PS 26188).
 
-Pipeline: OCR -> document type detection -> validation -> tamper detection ->
+Pipeline: OCR -> document type -> validation -> tamper detection ->
 noise analysis -> face match -> liveness -> risk scoring ->
 blockchain logging -> SQLite storage -> PDF report + QR code.
 """
@@ -11,6 +11,8 @@ blockchain logging -> SQLite storage -> PDF report + QR code.
 import os
 import base64
 import shutil
+import hashlib
+import json
 
 import cv2
 from fastapi import FastAPI, UploadFile, File
@@ -118,14 +120,40 @@ async def upload_documents(
     # ---- 2. OCR ----
     fields = ocr.extract_fields(doc_path)
 
-    # ---- 3. Document type detection (pehle) ----
+    # ---- 3. Document type detection ----
     doc_type = document_type.detect_document_type(doc_path)
 
-    # ---- 4. Validation (document type ke hisaab se) ----
+    # ---- 4. Validation ----
     validation_errors = validation.validate_document(fields, doc_type)
 
-    # ---- 5. Tamper detection (ELA) ----
-    tamper_score, heatmap_image = tamper.detect_tampering(doc_path, output_dir=UPLOAD_DIR)
+        # ---- 5. Hash-based verification + Tamper detection ----
+    with open(doc_path, 'rb') as f:
+        doc_hash = hashlib.sha256(f.read()).hexdigest()
+
+    verified_hashes = set()
+    verified_hashes_file = os.path.join(os.path.dirname(__file__), '..', 'verified_hashes.json')
+    if os.path.exists(verified_hashes_file):
+        with open(verified_hashes_file) as f:
+            verified_hashes = set(json.load(f).values())
+
+    hash_verified = doc_hash in verified_hashes
+
+    if not hash_verified:
+        tamper_score = 1.0
+        heatmap_image = cv2.imread(doc_path)
+        if heatmap_image is not None:
+            heatmap_image = cv2.applyColorMap(
+                cv2.cvtColor(heatmap_image, cv2.COLOR_BGR2GRAY),
+                cv2.COLORMAP_JET
+            )
+        else:
+            heatmap_image = None
+        tamper_signals = {"method": "hash_mismatch", "verified": False}
+        validation_errors.append("Document hash not found in verified database (possible forged document)")
+    else:
+        tamper_score, heatmap_image = tamper.detect_tampering(doc_path, output_dir=UPLOAD_DIR)
+        tamper_signals = {"method": "hash_verified", "verified": True}
+
     heatmap_base64 = image_to_base64(heatmap_image)
 
     # ---- 6. Noise analysis ----
@@ -141,13 +169,14 @@ async def upload_documents(
     risk_result = risk.calculate_risk(
         validation_errors=validation_errors,
         tamper_score=tamper_score,
+        noise_score=noise_score,
         face_match=face_match,
         liveness_passed=liveness_passed,
     )
 
     # ---- 10. Blockchain logging ----
     block_data = {
-        "passport_number": fields.get("passport_number", "UNKNOWN"),
+        "document_number": fields.get("passport_number", "UNKNOWN"),
         "risk_score": risk_result["risk_score"],
         "risk_level": risk_result["risk_level"],
     }
@@ -159,6 +188,7 @@ async def upload_documents(
         "errors": validation_errors,
         "document_type": doc_type,
         "tamper_score": tamper_score,
+        "tamper_signals": tamper_signals,
         "noise_score": noise_score,
         "heatmap": heatmap_base64,
         "face_match": face_match,
@@ -171,8 +201,19 @@ async def upload_documents(
     }
 
     # ---- 12. Generate PDF report + QR code ----
-    passport_number = fields.get("passport_number", "UNKNOWN") or "UNKNOWN"
-    safe_id = str(passport_number).replace(" ", "_")
+    # Document-type aware document number
+    if doc_type == "passport":
+        doc_number = fields.get("passport_number", "UNKNOWN") or "UNKNOWN"
+    elif doc_type == "aadhaar":
+        doc_number = fields.get("aadhaar_number") or fields.get("passport_number") or "UNKNOWN"
+    elif doc_type == "driving_license":
+        doc_number = fields.get("dl_number") or fields.get("passport_number") or "UNKNOWN"
+    elif doc_type == "visa":
+        doc_number = fields.get("visa_number") or fields.get("passport_number") or "UNKNOWN"
+    else:
+        doc_number = fields.get("passport_number", "UNKNOWN") or "UNKNOWN"
+
+    safe_id = str(doc_number).replace(" ", "_")
 
     pdf_path = os.path.join(REPORTS_DIR, f"report_{safe_id}.pdf")
     pdf_report.generate_pdf_report(result, pdf_path)
@@ -180,7 +221,9 @@ async def upload_documents(
     qr_path = os.path.join(REPORTS_DIR, f"qr_{safe_id}.png")
     qr_code.generate_qr(
         {
-            "passport_number": passport_number,
+            "document_type": doc_type,
+            "document_number": doc_number,
+            "name": fields.get("name", "UNKNOWN"),
             "risk_level": risk_result["risk_level"],
             "blockchain_hash": new_block.hash,
         },
@@ -192,7 +235,7 @@ async def upload_documents(
 
     # ---- 13. Save to SQLite ----
     record = {
-        "passport_number": passport_number,
+        "passport_number": doc_number,
         "name": fields.get("name", "UNKNOWN"),
         "document_type": doc_type,
         "fields": fields,
@@ -209,7 +252,7 @@ async def upload_documents(
     database.save_record(record)
 
     # ---- 14. Trigger alert if high risk ----
-    alert.send_alert(risk_score=risk_result["risk_score"], passport_number=passport_number)
+    alert.send_alert(risk_score=risk_result["risk_score"], passport_number=doc_number)
 
     return result
 
