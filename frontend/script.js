@@ -2,7 +2,7 @@
 // AI Document Screening System - Frontend logic (Null-safe)
 // ==========================================================
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "";
 
 // ---- Safe element getter ----
 function getEl(id) {
@@ -96,7 +96,7 @@ function playAlertSound() {
 function animateRiskGauge(score) {
   const circle = getEl("riskGaugeCircle");
   const text = getEl("riskGaugeText");
-  if (!circle || !text) return; // agar elements nahi hai toh chupchaap nikal jao
+  if (!circle || !text) return;
 
   const maxOffset = 314;
   const targetOffset = maxOffset - (Math.min(score, 100) / 100) * maxOffset;
@@ -215,26 +215,22 @@ if (analyzeBtn) {
 function renderResults(result) {
   if (resultsSection) resultsSection.style.display = "block";
 
-  // Risk level
   const riskLevelEl = getEl("riskLevel");
   if (riskLevelEl) {
     riskLevelEl.textContent = result.risk_level || "--";
     riskLevelEl.className = "risk-badge " + (result.risk_level || "");
   }
 
-  // Voice + sound for HIGH risk
   voiceAlert(result.risk_level);
   if (result.risk_level === "HIGH") {
     playAlertSound();
   }
 
-  // Risk score
   const riskScore = result.risk_score ?? 0;
   const riskScoreEl = getEl("riskScore");
   if (riskScoreEl) riskScoreEl.textContent = riskScore;
   animateRiskGauge(riskScore);
 
-  // Simple fields (safe)
   setText("documentType", result.document_type || "--");
   setText("faceMatch", result.face_match ? "Match" : "No Match");
   setText("similarity", result.similarity ?? "--");
@@ -243,13 +239,11 @@ function renderResults(result) {
   setText("noiseScore", result.noise_score ?? "--");
   setText("blockchainHash", result.blockchain_hash || "--");
 
-  // Extracted fields
   const fieldsEl = getEl("extractedFields");
   if (fieldsEl) {
     fieldsEl.textContent = JSON.stringify(result.fields || {}, null, 2);
   }
 
-  // Validation errors
   const errorsList = getEl("errorsList");
   if (errorsList) {
     errorsList.innerHTML = "";
@@ -266,7 +260,6 @@ function renderResults(result) {
     }
   }
 
-  // Heatmap
   const heatmapImage = getEl("heatmapImage");
   if (heatmapImage) {
     if (result.heatmap) {
@@ -277,7 +270,6 @@ function renderResults(result) {
     }
   }
 
-  // PDF/QR links
   const pdfLink = getEl("pdfLink");
   const qrLink = getEl("qrLink");
   if (pdfLink) pdfLink.href = result.pdf_report ? BACKEND_URL + result.pdf_report : "#";
@@ -286,7 +278,6 @@ function renderResults(result) {
   if (resultsSection) resultsSection.scrollIntoView({ behavior: "smooth" });
 }
 
-// Helper: safe set text
 function setText(id, value) {
   const el = getEl(id);
   if (el) el.textContent = value;
