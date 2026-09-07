@@ -1,23 +1,15 @@
-"""
-database.py
-SQLite storage ("records.db") for every document screening result.
-"""
-
 import sqlite3
 import json
 from datetime import datetime
 
 DB_NAME = "records.db"
 
-
 def get_connection():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def create_table():
-    """Create the records table if it doesn't already exist."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -44,11 +36,30 @@ def create_table():
     conn.commit()
     conn.close()
 
-
 def save_record(record: dict):
-    """Insert one screening record (dict) into the database."""
     conn = get_connection()
     cursor = conn.cursor()
+
+    # Document number by type
+    doc_type = record.get("document_type", "unknown")
+    fields_data = record.get("fields", {})
+
+    if doc_type == "passport":
+        doc_number = fields_data.get("passport_number") or "UNKNOWN"
+    elif doc_type == "aadhaar":
+        doc_number = fields_data.get("aadhaar_number") or fields_data.get("passport_number") or "UNKNOWN"
+    elif doc_type == "driving_license":
+        doc_number = fields_data.get("dl_number") or fields_data.get("passport_number") or "UNKNOWN"
+    elif doc_type == "visa":
+        doc_number = fields_data.get("visa_number") or fields_data.get("passport_number") or "UNKNOWN"
+    else:
+        doc_number = fields_data.get("passport_number") or "UNKNOWN"
+
+    # Name fix: remove "Passport No" or invalid tokens
+    name = record.get("name") or fields_data.get("name") or "UNKNOWN"
+    if name in ("Passport No", "Passport Number", "UNKNOWN", ""):
+        name = None
+
     cursor.execute(
         """
         INSERT INTO records
@@ -58,9 +69,9 @@ def save_record(record: dict):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            record.get("passport_number", "UNKNOWN"),
-            record.get("name", "UNKNOWN"),
-            record.get("document_type", "unknown"),
+            doc_number,
+            name,
+            doc_type,
             json.dumps(record.get("fields", {})),
             json.dumps(record.get("errors", [])),
             record.get("tamper_score", 0),
@@ -79,9 +90,7 @@ def save_record(record: dict):
     conn.close()
     return record_id
 
-
 def get_records():
-    """Return all records as a list of dicts, most recent first."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM records ORDER BY id DESC")
@@ -95,13 +104,20 @@ def get_records():
         record["errors"] = json.loads(record["errors"] or "[]")
         record["face_match"] = json.loads(record["face_match"] or "{}")
         record["liveness_passed"] = bool(record["liveness_passed"])
+        # If document type is known, show proper number
+        if record.get("document_type") == "aadhaar":
+            record["display_number"] = record["fields"].get("aadhaar_number") or record["passport_number"]
+        elif record.get("document_type") == "driving_license":
+            record["display_number"] = record["fields"].get("dl_number") or record["passport_number"]
+        elif record.get("document_type") == "visa":
+            record["display_number"] = record["fields"].get("visa_number") or record["passport_number"]
+        else:
+            record["display_number"] = record["passport_number"]
         records.append(record)
 
     return records
 
-
 def get_stats():
-    """Return aggregate counts used by the analytics/dashboard endpoints."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -131,28 +147,4 @@ def get_stats():
         "tampered_count": tampered_count,
     }
 
-
-# Make sure the table exists as soon as this module is imported
 create_table()
-
-
-if __name__ == "__main__":
-    save_record(
-        {
-            "passport_number": "A1234567",
-            "name": "John Doe",
-            "document_type": "passport",
-            "fields": {"dob": "1990-01-01"},
-            "errors": [],
-            "tamper_score": 0.2,
-            "noise_score": 0.1,
-            "face_match": {"match": True, "similarity": 0.92},
-            "similarity": 0.92,
-            "liveness_passed": True,
-            "risk_score": 35,
-            "risk_level": "LOW",
-            "blockchain_hash": "abc123",
-        }
-    )
-    print(get_records())
-    print(get_stats())

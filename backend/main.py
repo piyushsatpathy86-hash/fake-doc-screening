@@ -50,8 +50,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-REPORTS_DIR = "reports"
+# All paths are resolved relative to this file's location (not the
+# terminal's cwd), so the server behaves the same no matter where
+# you launch `uvicorn` from. This was the root cause of the
+# intermittent 404s / white-page bug on the frontend and /files routes.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
@@ -132,7 +138,7 @@ async def upload_documents(
         doc_hash = hashlib.sha256(f.read()).hexdigest()
 
     verified_hashes = set()
-    verified_hashes_file = os.path.join(os.path.dirname(__file__), '..', 'verified_hashes.json')
+    verified_hashes_file = os.path.join(BASE_DIR, '..', 'verified_hashes.json')
     if os.path.exists(verified_hashes_file):
         with open(verified_hashes_file) as f:
             verified_hashes = set(json.load(f).values())
@@ -234,10 +240,26 @@ async def upload_documents(
     result["pdf_report"] = f"/files/{os.path.basename(pdf_path)}"
     result["qr_code"] = f"/files/{os.path.basename(qr_path)}"
 
-    # ---- 13. Save to SQLite ----
+       # ---- 13. Save to SQLite ----
+    # Fix name and document number
+    display_name = fields.get("name")
+    if display_name in ("Passport No", "Passport Number", "Passport No.", ""):
+        display_name = None
+
+    if doc_type == "passport":
+        display_number = fields.get("passport_number") or "UNKNOWN"
+    elif doc_type == "aadhaar":
+        display_number = fields.get("aadhaar_number") or fields.get("passport_number") or "UNKNOWN"
+    elif doc_type == "driving_license":
+        display_number = fields.get("dl_number") or fields.get("passport_number") or "UNKNOWN"
+    elif doc_type == "visa":
+        display_number = fields.get("visa_number") or fields.get("passport_number") or "UNKNOWN"
+    else:
+        display_number = fields.get("passport_number") or "UNKNOWN"
+
     record = {
-        "passport_number": doc_number,
-        "name": fields.get("name", "UNKNOWN"),
+        "passport_number": display_number,
+        "name": display_name,
         "document_type": doc_type,
         "fields": fields,
         "errors": validation_errors,
@@ -251,7 +273,7 @@ async def upload_documents(
         "blockchain_hash": new_block.hash,
     }
     database.save_record(record)
-
+    
     # ---- 14. Trigger alert if high risk ----
     alert.send_alert(risk_score=risk_result["risk_score"], passport_number=doc_number)
 
@@ -263,7 +285,17 @@ async def upload_documents(
 # =====================================================
 # Mount the frontend at the root path. `html=True` makes sure index.html
 # is served when the root URL is hit. CSS/JS/images are served relatively.
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+else:
+    # Fail loudly with a clear message instead of crashing on import,
+    # or (worse) silently serving nothing and giving you a white page
+    # with no explanation.
+    print(
+        f"[WARNING] Frontend directory not found at {FRONTEND_DIR!r}. "
+        "The API routes will still work, but the UI will not be served. "
+        "Check that the 'frontend' folder is a sibling of 'backend/'."
+    )
 
 
 if __name__ == "__main__":
