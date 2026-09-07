@@ -58,13 +58,6 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 # Serve generated PDFs/QR codes/heatmaps so the frontend can load them directly
 app.mount("/files", StaticFiles(directory=REPORTS_DIR), name="files")
 
-# Serve frontend static files
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
-
-@app.get("/")
-def index():
-    return FileResponse("frontend/index.html")
-
 
 def save_upload_file(upload_file: UploadFile, destination: str) -> str:
     with open(destination, "wb") as buffer:
@@ -263,6 +256,14 @@ async def upload_documents(
     alert.send_alert(risk_score=risk_result["risk_score"], passport_number=doc_number)
 
     return result
+
+
+# =====================================================
+# FRONTEND SERVING (static files at root, SPA fallback)
+# =====================================================
+# Mount the frontend at the root path. `html=True` makes sure index.html
+# is served when the root URL is hit. CSS/JS/images are served relatively.
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
 if __name__ == "__main__":

@@ -1,16 +1,7 @@
 """
 modules/ocr.py
 Extracts identity fields from a document image.
-
-`raw_mrz_valid` now has THREE possible states, not two:
-  True  -> PassportEye read the MRZ and its checksum validated
-  False -> PassportEye read an MRZ but the checksum FAILED
-           (a real forgery/corruption signal)
-  None  -> No MRZ could be read at all, so we fell back to plain
-           OCR (very common on photos/scans of non-MRZ documents
-           like Aadhaar/DL, or low-quality passport photos) --
-           this is NOT the same thing as a failed checksum and
-           should not be scored as one.
+Name extraction: ONLY from explicit labels (Surname / Given Name / Name:).
 """
 
 import os
@@ -38,6 +29,9 @@ def _empty_fields():
         "date_of_expiry": None,
         "gender": None,
         "raw_mrz_valid": None,
+        "aadhaar_number": None,
+        "dl_number": None,
+        "visa_number": None,
     }
 
 
@@ -72,88 +66,93 @@ def _extract_with_ocr_fallback(image_path: str) -> dict:
         text_upper = text.upper()
 
         # Passport number: letter + 7 digits (e.g., T1234567)
-        passport_match = re.search(r"\b([A-Z][0-9]{7})\b", text_upper)
-        if passport_match:
-            fields["passport_number"] = passport_match.group(1)
+        pm = re.search(r"\b([A-Z][0-9]{7})\b", text_upper)
+        if pm:
+            fields["passport_number"] = pm.group(1)
 
-        # ========== IMPROVED NAME EXTRACTION ==========
-        # Try explicit passport labels first (Surname / Given Name(s))
-        surname_match = re.search(r"Surname\s*[:/\n]+\s*([A-Z]+)", text, re.IGNORECASE)
-        given_match = re.search(r"Given Name(?:\(s\))?\s*[:/\n]+\s*([A-Z\s.]+?)(?=\n|$)", text, re.IGNORECASE)
+        # Aadhaar number (12 digits, possibly spaced)
+        am = re.search(r"\b(\d{4}\s?\d{4}\s?\d{4})\b", text)
+        if am:
+            fields["aadhaar_number"] = am.group(1).replace(" ", "")
 
-        surname = surname_match.group(1).strip() if surname_match else ""
-        given = given_match.group(1).strip() if given_match else ""
+        # DL number (e.g., MH01 20260000001)
+        dl = re.search(r"\b([A-Z]{2}\d{2}\s?[A-Z0-9]{11})\b", text_upper)
+        if dl:
+            fields["dl_number"] = dl.group(1)
+
+        # Visa number (letter + 7 digits)
+        vm = re.search(r"\b([A-Z]\d{7})\b", text_upper)
+        if vm:
+            fields["visa_number"] = vm.group(1)
+
+        # ---------- NAME EXTRACTION (STRICT: only explicit labels) ----------
+        # We look for "Surname" and "Given Name(s)" labels separately.
+        # After the label, we take the next non-empty line that contains
+        # only alphabetic characters and spaces (no digits, no punctuation).
+        def get_label_value(label_pattern):
+            m = re.search(label_pattern, text, re.IGNORECASE)
+            if not m:
+                return None
+            # Find the start of the value after the label
+            start = m.end()
+            # Get remaining text
+            remaining = text[start:]
+            # Take first non-empty line
+            for line in remaining.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                # Only accept if line has only letters and spaces
+                if re.fullmatch(r"[A-Za-z\s.]+", line):
+                    return line
+                return None  # if next line isn't clean, don't guess
+            return None
+
+        surname = get_label_value(r"Surname\s*[:/\n]+")
+        given = get_label_value(r"Given Name(?:\(s\))?\s*[:/\n]+")
 
         if surname or given:
-            fields["name"] = f"{given} {surname}".strip()
+            name = f"{given or ''} {surname or ''}".strip()
+            fields["name"] = name or None
         else:
-            # Generic "Name:" label fallback
-            name_match = re.search(r"(?:Name|Surname)[:\s]+([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)", text, re.IGNORECASE)
+            # Only "Name:" label (not "Passport No" or anything else)
+            name_match = re.search(r"\bName\s*[:]\s*([A-Za-z]+(?:\s[A-Za-z]+)*)", text, re.IGNORECASE)
             if name_match:
                 fields["name"] = name_match.group(1).strip()
+            else:
+                fields["name"] = None
 
-        # Aadhaar/other card fallback: first suitable Title-Case line
-        if not fields["name"]:
-            lines = [l.strip() for l in text.split('\n') if l.strip()]
-            for line in lines:
-                # Line should look like a name: 2-3 words, each starting uppercase, only letters
-                words = line.split()
-                if 2 <= len(words) <= 3 and all(w.isalpha() and w[0].isupper() for w in words):
-                    low_line = line.lower()
-                    # Skip known non-name phrases
-                    skip_phrases = [
-                        "government of", "unique identification", "gender male",
-                        "gender female", "date of", "valid till", "valid upto",
-                        "aadhaar", "aadhar", "passport", "republic of india",
-                        "issued", "dob", "date of birth"
-                    ]
-                    if not any(ph in low_line for ph in skip_phrases):
-                        fields["name"] = line
-                        break
-
-        # Last resort: Title-Case two-word pattern
-        if not fields["name"]:
-            for candidate in re.finditer(r"\b([A-Z][a-z]+)\s([A-Z][a-z]+)\b", text):
-                phrase = f"{candidate.group(1)} {candidate.group(2)}".lower()
-                if phrase not in {
-                    "government of", "unique identification", "gender male",
-                    "gender female", "date of", "valid till", "valid upto",
-                }:
-                    fields["name"] = f"{candidate.group(1)} {candidate.group(2)}"
-                    break
-        # ================================================
-
-        # Date of birth
-        dob_labeled_match = re.search(
-            r"(?:DOB|Date of Birth|\u091c\u0928\u094d\u092e\s*\u0924\u093f\u0925\u093f)[:\s/]*"
-            r"(\d{2}[/-]\d{2}[/-]\d{4})",
-            text,
-            re.IGNORECASE,
+        # ---------- DATE OF BIRTH ----------
+        dob_labeled = re.search(
+            r"(?:DOB|Date of Birth|\u091c\u0928\u094d\u092e\s*\u0924\u093f\u0925\u093f)[:\s/]*(\d{2}[/-]\d{2}[/-]\d{4})",
+            text, re.IGNORECASE,
         )
-        if dob_labeled_match:
-            fields["date_of_birth"] = dob_labeled_match.group(1)
+        if dob_labeled:
+            fields["date_of_birth"] = dob_labeled.group(1)
         else:
-            dob_match = re.search(r"\b(\d{2}[/-]\d{2}[/-]\d{4})\b", text)
-            if dob_match:
-                fields["date_of_birth"] = dob_match.group(1)
+            dob = re.search(r"\b(\d{2}[/-]\d{2}[/-]\d{4})\b", text)
+            if dob:
+                fields["date_of_birth"] = dob.group(1)
 
-        # Expiry date
+        # ---------- EXPIRY DATE ----------
         expiry_match = re.search(
             r"(?:Date of Expiry|EXPIRY|EXP|Valid Till|Valid Upto|Valid Until|"
-            r"Visa Expiry|Visa Valid Until|Visa Valid Upto)[:\s]*"
-            r"(\d{2}[/-]\d{2}[/-]\d{4})",
-            text,
-            re.IGNORECASE,
+            r"Visa Expiry|Visa Valid Until|Visa Valid Upto)[:\s]*(\d{2}[/-]\d{2}[/-]\d{4})",
+            text, re.IGNORECASE,
         )
         if expiry_match:
             fields["date_of_expiry"] = expiry_match.group(1)
 
-        # Gender/Sex
-        gender_match = re.search(r"(?:Sex|Gender)[:\s]*([MF])", text, re.IGNORECASE)
-        if not gender_match:
-            gender_match = re.search(r"\b(M|F)\b", text_upper)
-        if gender_match:
-            fields["gender"] = gender_match.group(1).upper()
+        # ---------- GENDER ----------
+        gender_full = re.search(r"\b(Male|Female)\b", text, re.IGNORECASE)
+        if gender_full:
+            fields["gender"] = gender_full.group(1)[0].upper()
+        else:
+            gender_abbr = re.search(r"(?:Sex|Gender)[:\s]*([MF])", text, re.IGNORECASE)
+            if not gender_abbr:
+                gender_abbr = re.search(r"\b(M|F)\b", text_upper)
+            if gender_abbr:
+                fields["gender"] = gender_abbr.group(1).upper()
 
         fields["raw_mrz_valid"] = None
         fields["ocr_raw_text"] = text[:500]
